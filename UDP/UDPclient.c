@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,7 +13,7 @@ int main(int argc, char **argv)
 {
     int sock;
     long long file_size = 0, sent_size = 0;
-    char message[BUFSIZE];
+    char message[BUFSIZE + 1];
     int str_len, addr_size, i;
 
     struct sockaddr_in serv_addr;
@@ -24,7 +25,13 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    sock = socket(PF_INET, SOCK_DGRAM, 0);
+    sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+
+    struct timeval optVal = {5, 0};
+    int optLen = sizeof(optVal);
+
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &optVal, optLen);
+
     if (sock == -1)
         error_handling("UDP socket() error");
 
@@ -38,11 +45,8 @@ int main(int argc, char **argv)
     sendto(sock, argv[3], strlen(argv[3]), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
     str_len = recvfrom(sock, message, BUFSIZE, 0, (struct sockaddr *)&from_addr, &addr_size);
-    message[str_len] = '\0';
 
-    printf("%s\n", argv[3]);
-
-    if (strcmp(argv[3], message))
+    if (str_len == -1 || strncmp(argv[3], message, sizeof(argv[3])))
         error_handling("filename transfer is failed.\n");
 
     FILE *fp = fopen(argv[3], "r");
@@ -54,14 +58,18 @@ int main(int argc, char **argv)
 
     while (fgets(message, sizeof(message), fp) != NULL)
     {
-        fseek(fp, 0, SEEK_CUR);
         sent_size = ftell(fp);
         printf("%lld / %lld\n", sent_size, file_size);
 
-        sendto(sock, message, strlen(message), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+        sendto(sock, message, BUFSIZE, 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
         str_len = recvfrom(sock, message, BUFSIZE, 0, (struct sockaddr *)&from_addr, &addr_size);
-        message[str_len] = '\0';
+
+        if(str_len == -1) {
+            fclose(fp);
+            close(sock);
+            exit(1);
+        }
     }
 
     fclose(fp);
@@ -77,6 +85,4 @@ void error_handling(char *message)
     exit(1);
 }
 
-/*
-./UDPclient 10.1.0.1 57633 file.txt
-*/
+// ./UDPclient 10.1.0.1 57633 file.txt
