@@ -51,6 +51,7 @@ int main(int argc, char **argv)
 
     while (1)
     {
+        memset(message, sizeof(message), 0);
         clnt_addr_size = sizeof(clnt_addr);
 
         str_len = recvfrom(serv_sock, message, sizeof(message), 0,

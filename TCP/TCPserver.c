@@ -17,8 +17,6 @@ int main(int argc, char **argv)
 
     int str_len, num = 0;
 
-    char message[BUFSIZE + 1];
-
     struct sockaddr_in serv_addr;
     struct sockaddr_in clnt_addr;
     int clnt_addr_size;
@@ -47,6 +45,10 @@ int main(int argc, char **argv)
 
     while (1)
     {
+        char message[BUFSIZE] = {0,};
+        char filename[BUFSIZE];
+        char filename_length_binary[12];
+
         clnt_addr_size = sizeof(clnt_addr);
 
         clnt_sock = accept(serv_sock, (struct sockaddr *)&clnt_addr, &clnt_addr_size);
@@ -57,10 +59,8 @@ int main(int argc, char **argv)
 
 
         printf("처음\n%s\n", message);
-        int message_length = strlen(message);
-        char filename_length_binary[12];
-        char filename[BUFSIZE];
         
+        int message_length = strlen(message);
         strncpy(filename_length_binary, message, 10);
         filename_length_binary[11] = '\0';
         
@@ -78,15 +78,20 @@ int main(int argc, char **argv)
         strcpy(message, message + 10 + filename_length);
         message[message_length - 10 - filename_length + 1] = '\0';
         printf("\n%s\n", message);
+
         fprintf(fp, message);
         fflush(fp);
+        memset(message, sizeof(message), 0);
+
 
         while ((str_len = read(clnt_sock, message, sizeof(message))) != 0)
         {
             printf("%d\n", str_len);
+
             message[str_len] = '\0';
             fprintf(fp, message);
             fflush(fp);
+            memset(message, sizeof(message), 0);
         }
 
         fclose(fp);
